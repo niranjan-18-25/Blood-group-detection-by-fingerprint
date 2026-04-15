@@ -28,8 +28,6 @@ This project explores a **non-invasive alternative** using **Computer Vision + C
 ## 🖼️ Demo Preview
 
 ![Snapshot1]('photos/photo1.png')
-![snapshot2]('photos/photo2.png')
-![snapshot3]('photos/photo3.png')
 
 ---
 
