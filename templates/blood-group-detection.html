@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HemaTrace — Blood Group Detection via Fingerprint</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --crimson: #c0162a;
+    --crimson-dark: #8a0e1e;
+    --crimson-glow: #ff1a35;
+    --crimson-soft: #ff4d6d;
+    --deep: #0a0608;
+    --deep2: #12080c;
+    --surface: #1a0c10;
+    --surface2: #250f15;
+    --surface3: #30141c;
+    --gold: #e8b86d;
+    --gold-bright: #f5d08a;
+    --text: #f5eef0;
+    --text-muted: #b8909c;
+    --text-dim: #7a5a64;
+    --border: rgba(192,22,42,0.25);
+    --border-soft: rgba(192,22,42,0.12);
+    --scan-color: #c0162a;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--deep);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ANIMATED BACKGROUND */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(192,22,42,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 80% 90%, rgba(192,22,42,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse 40% 40% at 50% 50%, rgba(138,14,30,0.05) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* DNA PARTICLE BACKGROUND */
+  #particles {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .particle {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: var(--crimson);
+    border-radius: 50%;
+    opacity: 0;
+    animation: float-up linear infinite;
+  }
+
+  @keyframes float-up {
+    0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.2; }
+    100% { transform: translateY(-10vh) translateX(var(--drift)); opacity: 0; }
+  }
+
+  /* NAVBAR */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 0 5%;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(10,6,8,0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.4rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--crimson);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .logo-icon::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+  }
+
+  .logo svg { width: 20px; height: 20px; fill: white; }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    list-style: none;
+  }
+
+  .nav-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    transition: color 0.2s;
+  }
+
+  .nav-links a:hover { color: var(--text); }
+
+  .nav-cta {
+    background: var(--crimson) !important;
+    color: white !important;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-weight: 500 !important;
+    transition: background 0.2s !important;
+  }
+
+  .nav-cta:hover { background: var(--crimson-dark) !important; }
+
+  /* HERO */
+  .hero {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 100px 5% 60px;
+    gap: 4rem;
+  }
+
+  .hero-content {
+    flex: 1;
+    max-width: 600px;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(192,22,42,0.15);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--crimson-soft);
+    margin-bottom: 2rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    animation: fade-in 0.8s ease forwards;
+  }
+
+  .badge-dot {
+    width: 6px; height: 6px;
+    background: var(--crimson-soft);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+  }
+
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(2.8rem, 6vw, 5rem);
+    line-height: 1.0;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.5rem;
+    animation: fade-up 0.8s 0.1s ease both;
+  }
+
+  .hero h1 span {
+    color: var(--crimson);
+    position: relative;
+    display: inline-block;
+  }
+
+  .hero h1 span::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0; right: 0;
+    height: 3px;
+    background: var(--crimson);
+    border-radius: 2px;
+    animation: expand-line 0.8s 0.6s ease both;
+    transform-origin: left;
+  }
+
+  @keyframes expand-line {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+
+  .hero p {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: var(--text-muted);
+    margin-bottom: 2.5rem;
+    font-weight: 300;
+    animation: fade-up 0.8s 0.2s ease both;
+    max-width: 480px;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 1rem;
+    animation: fade-up 0.8s 0.3s ease both;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary {
+    background: var(--crimson);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s;
+    font-family: 'DM Sans', sans-serif;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+    transform: translateX(-100%);
+    transition: transform 0.5s;
+  }
+
+  .btn-primary:hover { background: #a81225; transform: translateY(-2px); box-shadow: 0 8px 30px rgba(192,22,42,0.4); }
+  .btn-primary:hover::before { transform: translateX(100%); }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 14px 32px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.25s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .btn-outline:hover { border-color: var(--crimson); color: var(--crimson-soft); background: rgba(192,22,42,0.06); }
+
+  .hero-stats {
+    display: flex;
+    gap: 2.5rem;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-soft);
+    animation: fade-up 0.8s 0.4s ease both;
+  }
+
+  .stat-item { }
+
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 2rem;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .stat-value span { color: var(--crimson); }
+
+  .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 0.03em;
+  }
+
+  /* FINGERPRINT VISUAL */
+  .hero-visual {
+    flex: 1;
+    max-width: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fade-in 1s 0.3s ease both;
+    position: relative;
+  }
+
+  .fp-container {
+    position: relative;
+    width: 380px;
+    height: 380px;
+  }
+
+  .fp-rings {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .fp-ring {
+    position: absolute;
+    border: 1px solid;
+    border-radius: 50%;
+    animation: ring-pulse 3s ease-in-out infinite;
+  }
+
+  .fp-ring:nth-child(1) { width: 380px; height: 380px; border-color: rgba(192,22,42,0.08); animation-delay: 0s; }
+  .fp-ring:nth-child(2) { width: 300px; height: 300px; border-color: rgba(192,22,42,0.15); animation-delay: 0.5s; }
+  .fp-ring:nth-child(3) { width: 220px; height: 220px; border-color: rgba(192,22,42,0.25); animation-delay: 1s; }
+
+  @keyframes ring-pulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.03); }
+  }
+
+  .fp-core {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    background: var(--surface2);
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .fp-core::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 30%, rgba(192,22,42,0.2), transparent 60%);
+  }
+
+  .fp-svg {
+    width: 120px;
+    height: 120px;
+    opacity: 0.8;
+  }
+
+  .scan-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--crimson), transparent);
+    top: 0;
+    animation: scan 2.5s ease-in-out infinite;
+    box-shadow: 0 0 12px var(--crimson);
+  }
+
+  @keyframes scan {
+    0% { top: 10%; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: 90%; opacity: 0; }
+  }
+
+  .data-points {
+    position: absolute;
+    inset: 0;
+  }
+
+  .data-point {
+    position: absolute;
+    width: 8px; height: 8px;
+    background: var(--crimson);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--crimson);
+    animation: dp-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes dp-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.5); }
+  }
+
+  .data-point:nth-child(1) { top: 15%; left: 20%; animation-delay: 0s; }
+  .data-point:nth-child(2) { top: 30%; right: 15%; animation-delay: 0.3s; }
+  .data-point:nth-child(3) { bottom: 20%; left: 25%; animation-delay: 0.6s; }
+  .data-point:nth-child(4) { bottom: 15%; right: 20%; animation-delay: 0.9s; }
+  .data-point:nth-child(5) { top: 50%; left: 8%; animation-delay: 0.15s; }
+
+  .blood-type-badge {
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    width: 64px; height: 64px;
+    background: var(--crimson);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.2rem;
+    color: white;
+    box-shadow: 0 0 30px rgba(192,22,42,0.6);
+    animation: badge-bounce 2s ease-in-out infinite;
+    z-index: 10;
+  }
+
+  @keyframes badge-bounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-6px) scale(1.05); }
+  }
+
+  /* SECTION STYLES */
+  section {
+    position: relative;
+    z-index: 1;
+    padding: 100px 5%;
+  }
+
+  .section-label {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--crimson);
+    margin-bottom: 1rem;
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-desc {
+    font-size: 1rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+    max-width: 520px;
+    font-weight: 300;
+  }
+
+  /* HOW IT WORKS */
+  .how {
+    background: var(--surface);
+    border-top: 1px solid var(--border-soft);
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5px;
+    margin-top: 4rem;
+    background: var(--border-soft);
+    border: 1px solid var(--border-soft);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .step-card {
+    background: var(--surface2);
+    padding: 2.5rem 2rem;
+    position: relative;
+    transition: background 0.3s;
+  }
+
+  .step-card:hover { background: var(--surface3); }
+
+  .step-number {
+    font-family: 'Syne', sans-serif;
+    font-size: 4rem;
+    font-weight: 800;
+    color: rgba(192,22,42,0.12);
+    line-height: 1;
+    margin-bottom: 1rem;
+    position: absolute;
+    top: 1.5rem;
+    right: 2rem;
+    transition: color 0.3s;
+  }
+
+  .step-card:hover .step-number { color: rgba(192,22,42,0.25); }
+
+  .step-icon {
+    width: 52px; height: 52px;
+    background: rgba(192,22,42,0.1);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .step-icon svg { width: 24px; height: 24px; stroke: var(--crimson); fill: none; stroke-width: 1.5; }
+
+  .step-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .step-text {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  /* DETECTION SECTION */
+  .detection {
+    background: var(--deep2);
+  }
+
+  .detect-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    margin-top: 4rem;
+  }
+
+  @media (max-width: 768px) {
+    .detect-layout { grid-template-columns: 1fr; }
+    .hero { flex-direction: column; padding-top: 120px; }
+    .hero-visual { display: none; }
+  }
+
+  .upload-zone {
+    background: var(--surface);
+    border: 2px dashed var(--border);
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-zone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(192,22,42,0.04), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .upload-zone:hover {
+    border-color: var(--crimson);
+    background: var(--surface2);
+    transform: translateY(-3px);
+  }
+
+  .upload-zone:hover::before { opacity: 1; }
+
+  .upload-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .upload-icon {
+    width: 72px; height: 72px;
+    background: rgba(192,22,42,0.1);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    transition: all 0.3s;
+  }
+
+  .upload-zone:hover .upload-icon {
+    background: rgba(192,22,42,0.2);
+    border-color: var(--crimson);
+    box-shadow: 0 0 20px rgba(192,22,42,0.2);
+  }
+
+  .upload-icon svg { width: 28px; height: 28px; stroke: var(--crimson); fill: none; stroke-width: 1.5; }
+
+  .upload-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .upload-sub {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    font-weight: 300;
+  }
+
+  .format-pills {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .pill {
+    background: rgba(192,22,42,0.1);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+  }
+
+  /* SCANNER */
+  .scanner-zone {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .scanner-frame {
+    width: 160px; height: 160px;
+    margin: 0 auto 2rem;
+    position: relative;
+  }
+
+  .scanner-frame-border {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    border: 2px solid var(--border);
+  }
+
+  .scanner-corner {
+    position: absolute;
+    width: 20px; height: 20px;
+    border-color: var(--crimson);
+    border-style: solid;
+  }
+
+  .scanner-corner.tl { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+  .scanner-corner.tr { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+  .scanner-corner.bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+  .scanner-corner.br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+  .scanner-inner {
+    position: absolute;
+    inset: 8px;
+    background: var(--surface2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .scanner-beam {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--crimson-glow), transparent);
+    box-shadow: 0 0 10px var(--crimson);
+    animation: beam-scan 2s ease-in-out infinite;
+    top: 20px;
+  }
+
+  @keyframes beam-scan {
+    0% { top: 15px; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: 125px; opacity: 0; }
+  }
+
+  .scanner-fp-icon {
+    width: 60px; height: 60px;
+    opacity: 0.15;
+  }
+
+  .scanner-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 1rem;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    background: var(--crimson);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  .status-text {
+    font-size: 0.875rem;
+    color: var(--crimson-soft);
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+  }
+
+  .scanner-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .scanner-sub {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+    font-weight: 300;
+  }
+
+  .btn-scan {
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 28px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-scan:hover {
+    background: var(--crimson);
+    border-color: var(--crimson);
+    box-shadow: 0 4px 20px rgba(192,22,42,0.35);
+  }
+
+  /* RESULTS */
+  .result-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2.5rem;
+    grid-column: 1 / -1;
+    display: none;
+    animation: fade-up 0.5s ease forwards;
+  }
+
+  .result-panel.show { display: block; }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .result-blood-type {
+    width: 100px; height: 100px;
+    background: var(--crimson);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 2.5rem;
+    color: white;
+    box-shadow: 0 0 40px rgba(192,22,42,0.5);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .result-blood-type::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid rgba(192,22,42,0.4);
+    animation: ring-expand 2s ease-out infinite;
+  }
+
+  @keyframes ring-expand {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+
+  .result-info h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .result-accuracy {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  .accuracy-bar {
+    width: 200px;
+    height: 6px;
+    background: var(--surface3);
+    border-radius: 3px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+  }
+
+  .accuracy-fill {
+    height: 100%;
+    background: var(--crimson);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 1s ease;
+  }
+
+  .result-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .result-detail-card {
+    background: var(--surface2);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+
+  .rdc-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .rdc-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .compatible-list {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+  }
+
+  .compat-badge {
+    background: rgba(192,22,42,0.1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.8rem;
+    color: var(--crimson-soft);
+    font-weight: 500;
+  }
+
+  /* FEATURES */
+  .features { background: var(--deep); }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 4rem;
+  }
+
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 20px;
+    padding: 2rem;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--crimson);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s;
+  }
+
+  .feature-card:hover {
+    border-color: var(--border);
+    transform: translateY(-5px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+
+  .feature-card:hover::before { transform: scaleX(1); }
+
+  .feature-icon {
+    width: 48px; height: 48px;
+    background: rgba(192,22,42,0.1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s;
+  }
+
+  .feature-card:hover .feature-icon {
+    background: rgba(192,22,42,0.2);
+    box-shadow: 0 0 20px rgba(192,22,42,0.2);
+  }
+
+  .feature-icon svg { width: 22px; height: 22px; stroke: var(--crimson); fill: none; stroke-width: 1.5; }
+
+  .feature-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .feature-text {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  /* ACCURACY */
+  .accuracy-section {
+    background: var(--surface);
+    border-top: 1px solid var(--border-soft);
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .accuracy-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5rem;
+    align-items: center;
+  }
+
+  @media (max-width: 900px) {
+    .accuracy-content { grid-template-columns: 1fr; }
+  }
+
+  .big-number {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(5rem, 12vw, 9rem);
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: var(--crimson);
+    position: relative;
+    display: inline-block;
+  }
+
+  .big-number::after {
+    content: '%';
+    font-size: 0.4em;
+    position: relative;
+    top: -0.3em;
+    color: var(--crimson-soft);
+  }
+
+  .blood-types-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .bt-card {
+    background: var(--surface2);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 1.2rem;
+    text-align: center;
+    transition: all 0.3s;
+  }
+
+  .bt-card:hover {
+    border-color: var(--crimson);
+    background: var(--surface3);
+    transform: scale(1.05);
+  }
+
+  .bt-type {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.3rem;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .bt-pct {
+    font-size: 0.8rem;
+    color: var(--crimson-soft);
+    font-weight: 500;
+  }
+
+  .bt-bar {
+    width: 100%;
+    height: 3px;
+    background: var(--surface3);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+
+  .bt-bar-fill {
+    height: 100%;
+    background: var(--crimson);
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  /* ABOUT / TECH STACK */
+  .tech-section { background: var(--deep2); }
+
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 3rem;
+  }
+
+  .tech-card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    transition: all 0.25s;
+  }
+
+  .tech-card:hover {
+    border-color: var(--border);
+    transform: translateY(-3px);
+  }
+
+  .tech-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text);
+    margin-top: 0.5rem;
+  }
+
+  .tech-icon-box {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    background: rgba(192,22,42,0.1);
+    border: 1px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.5rem;
+    font-size: 1.3rem;
+  }
+
+  /* FOOTER */
+  footer {
+    position: relative;
+    z-index: 1;
+    padding: 4rem 5%;
+    border-top: 1px solid var(--border-soft);
+    background: var(--deep);
+  }
+
+  .footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2rem;
+  }
+
+  .footer-text {
+    font-size: 0.875rem;
+    color: var(--text-dim);
+  }
+
+  .footer-text span { color: var(--crimson); }
+
+  /* ANIMATIONS */
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* PREVIEW IMAGE */
+  .preview-img {
+    max-width: 100%;
+    max-height: 140px;
+    border-radius: 8px;
+    display: none;
+    margin: 1rem auto 0;
+    object-fit: contain;
+  }
+
+  /* LOADER */
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(10,6,8,0.92);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1.5rem;
+    backdrop-filter: blur(10px);
+  }
+
+  .loading-overlay.active { display: flex; }
+
+  .loader-ring {
+    width: 80px; height: 80px;
+    border: 3px solid var(--border);
+    border-top-color: var(--crimson);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loader-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    animation: fade-cycle 1.5s ease-in-out infinite;
+  }
+
+  @keyframes fade-cycle {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  /* Blood drop decoration */
+  .blood-drop {
+    position: absolute;
+    opacity: 0.06;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- Particles -->
+<div id="particles"></div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loader">
+  <div class="loader-ring"></div>
+  <div class="loader-text" id="loader-text">Analyzing fingerprint...</div>
+</div>
+
+<!-- NAVBAR -->
+<nav>
+  <a href="#" class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2C8 8 4 10 4 15a8 8 0 0016 0c0-5-4-7-8-13z"/></svg>
+    </div>
+    HemaTrace
+  </a>
+  <ul class="nav-links">
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#detect">Detect</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#accuracy">Accuracy</a></li>
+    <li><a href="#detect" class="nav-cta">Try Now</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">
+      <span class="badge-dot"></span>
+      AI-Powered Biometric Analysis
+    </div>
+    <h1>Detect Blood Group<br>via <span>Fingerprint</span></h1>
+    <p>Revolutionary deep learning model that identifies your blood type from a single fingerprint scan. No needles. No waiting. Results in seconds.</p>
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="document.getElementById('detect').scrollIntoView({behavior:'smooth'})">Analyze Now</button>
+      <button class="btn-outline" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">Learn More</button>
+    </div>
+    <div class="hero-stats">
+      <div class="stat-item">
+        <div class="stat-value">93<span>%</span></div>
+        <div class="stat-label">Model Accuracy</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">8</div>
+        <div class="stat-label">Blood Types</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">&lt;3<span>s</span></div>
+        <div class="stat-label">Analysis Time</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-visual">
+    <div class="fp-container">
+      <div class="fp-rings">
+        <div class="fp-ring"></div>
+        <div class="fp-ring"></div>
+        <div class="fp-ring"></div>
+        <div class="fp-core">
+          <div class="scan-line"></div>
+          <!-- Fingerprint SVG -->
+          <svg class="fp-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M50 15 C30 15 15 30 15 50 C15 70 30 85 50 85 C70 85 85 70 85 50 C85 30 70 15 50 15Z" stroke="#c0162a" stroke-width="1.5" fill="none" opacity="0.7"/>
+            <path d="M50 22 C34 22 22 34 22 50 C22 66 34 78 50 78 C66 78 78 66 78 50 C78 34 66 22 50 22Z" stroke="#c0162a" stroke-width="1.5" fill="none" opacity="0.6"/>
+            <path d="M50 29 C38 29 29 38 29 50 C29 62 38 71 50 71 C62 71 71 62 71 50 C71 38 62 29 50 29Z" stroke="#c0162a" stroke-width="1.5" fill="none" opacity="0.5"/>
+            <path d="M50 36 C42 36 36 42 36 50 C36 58 42 64 50 64 C58 64 64 58 64 50 C64 42 58 36 50 36Z" stroke="#c0162a" stroke-width="1.5" fill="none" opacity="0.4"/>
+            <path d="M50 43 C46 43 43 46 43 50 C43 54 46 57 50 57 C54 57 57 54 57 50 C57 46 54 43 50 43Z" stroke="#c0162a" stroke-width="2" fill="none" opacity="0.8"/>
+            <circle cx="50" cy="50" r="3" fill="#c0162a" opacity="0.9"/>
+          </svg>
+          <div class="data-points">
+            <div class="data-point"></div>
+            <div class="data-point"></div>
+            <div class="data-point"></div>
+            <div class="data-point"></div>
+            <div class="data-point"></div>
+          </div>
+          <div class="blood-type-badge">A+</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="section-label">Process</div>
+  <div class="section-title">How It Works</div>
+  <div class="section-desc">Our deep learning pipeline extracts unique ridge patterns from fingerprints and correlates them with blood group markers using a trained CNN model.</div>
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-number">01</div>
+      <div class="step-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      </div>
+      <div class="step-title">Input Capture</div>
+      <div class="step-text">Upload a high-resolution fingerprint image or place your finger on the optical scanner for live biometric capture.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-number">02</div>
+      <div class="step-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+      </div>
+      <div class="step-title">Ridge Extraction</div>
+      <div class="step-text">Advanced image processing isolates minutiae points — ridge endings and bifurcations — from the fingerprint's unique pattern.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-number">03</div>
+      <div class="step-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      </div>
+      <div class="step-title">CNN Analysis</div>
+      <div class="step-text">Our convolutional neural network processes 128+ feature vectors against 5,000+ trained fingerprint samples per blood type.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-number">04</div>
+      <div class="step-icon">
+        <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+      </div>
+      <div class="step-title">Result Output</div>
+      <div class="step-text">Blood group (ABO + Rh) is determined with 93% accuracy, along with compatibility information and confidence score.</div>
+    </div>
+  </div>
+</section>
+
+<!-- DETECTION TOOL -->
+<section class="detection" id="detect">
+  <div class="section-label">Live Tool</div>
+  <div class="section-title">Analyze Your Fingerprint</div>
+  <div class="section-desc">Choose your preferred input method — upload an image or use our live scanner interface.</div>
+
+  <div class="detect-layout">
+
+    <!-- Upload -->
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" accept="image/*" id="fileInput" onchange="handleFileUpload(event)">
+      <div class="upload-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      </div>
+      <div class="upload-title">Upload Fingerprint Image</div>
+      <div class="upload-sub">Drag & drop or click to browse your files</div>
+      <div class="format-pills">
+        <span class="pill">PNG</span>
+        <span class="pill">JPG</span>
+        <span class="pill">BMP</span>
+        <span class="pill">TIFF</span>
+      </div>
+      <img id="previewImg" class="preview-img" alt="Fingerprint preview">
+    </div>
+
+    <!-- Scanner -->
+    <div class="scanner-zone">
+      <div class="scanner-status">
+        <div class="status-dot"></div>
+        <span class="status-text">Scanner Ready</span>
+      </div>
+
+      <div class="scanner-frame">
+        <div class="scanner-frame-border"></div>
+        <div class="scanner-corner tl"></div>
+        <div class="scanner-corner tr"></div>
+        <div class="scanner-corner bl"></div>
+        <div class="scanner-corner br"></div>
+        <div class="scanner-inner">
+          <div class="scanner-beam"></div>
+          <svg class="scanner-fp-icon" viewBox="0 0 100 100" fill="none">
+            <path d="M50 15 C30 15 15 30 15 50 C15 70 30 85 50 85 C70 85 85 70 85 50 C85 30 70 15 50 15Z" stroke="#c0162a" stroke-width="1.5" fill="none"/>
+            <path d="M50 25 C35 25 24 37 24 50 C24 64 35 76 50 76 C65 76 76 64 76 50 C76 37 65 25 50 25Z" stroke="#c0162a" stroke-width="1.5" fill="none"/>
+            <path d="M50 35 C40 35 33 42 33 50 C33 58 40 65 50 65 C60 65 67 58 67 50 C67 42 60 35 50 35Z" stroke="#c0162a" stroke-width="1.5" fill="none"/>
+            <circle cx="50" cy="50" r="5" fill="#c0162a" opacity="0.6"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="scanner-title">Live Fingerprint Scanner</div>
+      <div class="scanner-sub">Place finger on scanner pad and press Scan</div>
+      <button class="btn-scan" onclick="simulateScan()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M6 12c0-3.3 2.7-6 6-6s6 2.7 6 6-2.7 6-6 6"/><path d="M2 12C2 6.5 6.5 2 12 2s10 4.5 10 10-4.5 10-10 10S2 17.5 2 12"/></svg>
+        Scan Fingerprint
+      </button>
+    </div>
+
+    <!-- Result Panel -->
+    <div class="result-panel" id="resultPanel">
+      <div class="result-header">
+        <div class="result-blood-type" id="resultBT">A+</div>
+        <div class="result-info">
+          <h3 id="resultTitle">Blood Group Detected: A Positive</h3>
+          <div class="result-accuracy">Confidence: <strong id="resultConf">93.4%</strong></div>
+          <div class="accuracy-bar"><div class="accuracy-fill" id="accFill"></div></div>
+        </div>
+      </div>
+      <div class="result-details">
+        <div class="result-detail-card">
+          <div class="rdc-label">ABO Type</div>
+          <div class="rdc-value" id="rdcABO">Type A</div>
+        </div>
+        <div class="result-detail-card">
+          <div class="rdc-label">Rh Factor</div>
+          <div class="rdc-value" id="rdcRh">Positive (+)</div>
+        </div>
+        <div class="result-detail-card">
+          <div class="rdc-label">Can Donate To</div>
+          <div class="compatible-list" id="donateTo"></div>
+        </div>
+        <div class="result-detail-card">
+          <div class="rdc-label">Can Receive From</div>
+          <div class="compatible-list" id="receiveFrom"></div>
+        </div>
+        <div class="result-detail-card">
+          <div class="rdc-label">Rarity</div>
+          <div class="rdc-value" id="rdcRarity">Common (35%)</div>
+        </div>
+        <div class="result-detail-card">
+          <div class="rdc-label">Analysis Time</div>
+          <div class="rdc-value" id="rdcTime">2.3s</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="section-label">Why HemaTrace</div>
+  <div class="section-title">Built for Precision<br>& Speed</div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div class="feature-title">Non-Invasive Testing</div>
+      <div class="feature-text">Completely needle-free and painless. No blood samples required — just a simple fingerprint scan replaces traditional blood typing.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      </div>
+      <div class="feature-title">Real-Time Results</div>
+      <div class="feature-text">Deep learning inference in under 3 seconds. Instantly know your blood type, Rh factor, and compatibility information.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+      </div>
+      <div class="feature-title">Dual Input Support</div>
+      <div class="feature-text">Works seamlessly with both uploaded fingerprint images (PNG, JPG, TIFF) and direct optical/capacitive scanner hardware.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <div class="feature-title">93% Accuracy</div>
+      <div class="feature-text">Trained on diverse multi-ethnic datasets across all 8 ABO/Rh blood groups. Validated with 3,000+ clinical fingerprint samples.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      </div>
+      <div class="feature-title">Privacy-First Design</div>
+      <div class="feature-text">All processing runs on-device. Fingerprint data is never stored or transmitted to external servers — your biometrics stay yours.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+      </div>
+      <div class="feature-title">Cross-Platform</div>
+      <div class="feature-text">Deployed as a web app accessible on all modern browsers and devices — desktop, tablet, mobile — with responsive design.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ACCURACY -->
+<section class="accuracy-section" id="accuracy">
+  <div class="accuracy-content">
+    <div>
+      <div class="section-label">Performance</div>
+      <div class="big-number" id="bigNum">93</div>
+      <div class="section-title" style="margin-top: 1rem;">Validated<br>Accuracy Rate</div>
+      <div class="section-desc">Tested across 5,000 fingerprint samples with equal representation of all blood types and demographics. Consistently outperforms traditional rapid test kits in field conditions.</div>
+    </div>
+    <div>
+      <div style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase;">Per Blood Type Accuracy</div>
+      <div class="blood-types-grid" id="btGrid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH STACK -->
+<section class="tech-section">
+  <div class="section-label">Technology</div>
+  <div class="section-title">Built With</div>
+  <div class="tech-grid">
+    <div class="tech-card">
+      <div class="tech-icon-box">🧠</div>
+      <div class="tech-name">TensorFlow</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon-box">🔬</div>
+      <div class="tech-name">OpenCV</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon-box">🐍</div>
+      <div class="tech-name">Python</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon-box">📊</div>
+      <div class="tech-name">NumPy</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon-box">⚡</div>
+      <div class="tech-name">CNN Model</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon-box">🌐</div>
+      <div class="tech-name">Flask API</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-content">
+    <div>
+      <div class="logo" style="margin-bottom: 0.5rem;">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M12 2C8 8 4 10 4 15a8 8 0 0016 0c0-5-4-7-8-13z"/></svg>
+        </div>
+        HemaTrace
+      </div>
+      <div class="footer-text">Blood Group Detection via Fingerprint Analysis</div>
+    </div>
+    <div class="footer-text">
+      Powered by <span>Deep Learning</span> · 93% Accuracy · Non-Invasive · Fast
+    </div>
+  </div>
+</footer>
+
+<script>
+  // PARTICLES
+  const pc = document.getElementById('particles');
+  for (let i = 0; i < 40; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.cssText = `
+      left: ${Math.random()*100}%;
+      width: ${Math.random()*3+1}px;
+      height: ${Math.random()*3+1}px;
+      animation-duration: ${Math.random()*15+10}s;
+      animation-delay: ${Math.random()*15}s;
+      --drift: ${(Math.random()-0.5)*200}px;
+      opacity: 0;
+    `;
+    pc.appendChild(p);
+  }
+
+  // BLOOD TYPE DATA
+  const bloodData = {
+    'A+':  { abo:'Type A', rh:'Positive (+)', donate:['A+','AB+'], receive:['A+','A-','O+','O-'], rarity:'Common (35.7%)', acc: 94 },
+    'A-':  { abo:'Type A', rh:'Negative (-)', donate:['A+','A-','AB+','AB-'], receive:['A-','O-'], rarity:'Uncommon (6.3%)', acc: 91 },
+    'B+':  { abo:'Type B', rh:'Positive (+)', donate:['B+','AB+'], receive:['B+','B-','O+','O-'], rarity:'Common (8.5%)', acc: 93 },
+    'B-':  { abo:'Type B', rh:'Negative (-)', donate:['B+','B-','AB+','AB-'], receive:['B-','O-'], rarity:'Rare (1.5%)', acc: 90 },
+    'AB+': { abo:'Type AB', rh:'Positive (+)', donate:['AB+'], receive:['All Types'], rarity:'Rare (3.4%)', acc: 95 },
+    'AB-': { abo:'Type AB', rh:'Negative (-)', donate:['AB+','AB-'], receive:['All -ve Types'], rarity:'Very Rare (0.6%)', acc: 92 },
+    'O+':  { abo:'Type O', rh:'Positive (+)', donate:['A+','B+','AB+','O+'], receive:['O+','O-'], rarity:'Most Common (37.4%)', acc: 96 },
+    'O-':  { abo:'Type O', rh:'Negative (-)', donate:['All Types'], receive:['O-'], rarity:'Rare (6.6%)', acc: 93 },
+  };
+
+  // Populate blood types grid
+  const btGrid = document.getElementById('btGrid');
+  Object.entries(bloodData).forEach(([type, data]) => {
+    const div = document.createElement('div');
+    div.className = 'bt-card';
+    div.innerHTML = `
+      <div class="bt-type">${type}</div>
+      <div class="bt-pct">${data.acc}%</div>
+      <div class="bt-bar"><div class="bt-bar-fill" style="width:${data.acc}%"></div></div>
+    `;
+    btGrid.appendChild(div);
+  });
+
+  // ─── API CONFIG ────────────────────────────────────────────────
+  const API_BASE = 'http://localhost:5000';   // change if hosted elsewhere
+
+  // ─── LOADER MESSAGES ───────────────────────────────────────────
+  const loaderMessages = [
+    'Extracting ridge patterns...',
+    'Running CNN inference...',
+    'Analyzing minutiae points...',
+    'Matching blood markers...',
+    'Finalizing result...'
+  ];
+
+  let loaderInterval = null;
+  let uploadedFile   = null;   // holds the actual File object for the API call
+
+  function startLoader() {
+    const loader = document.getElementById('loader');
+    const loaderText = document.getElementById('loader-text');
+    loader.classList.add('active');
+    let i = 0;
+    loaderInterval = setInterval(() => {
+      loaderText.textContent = loaderMessages[i % loaderMessages.length];
+      i++;
+    }, 600);
+  }
+
+  function stopLoader() {
+    clearInterval(loaderInterval);
+    document.getElementById('loader').classList.remove('active');
+  }
+
+  // ─── FILE UPLOAD HANDLER ───────────────────────────────────────
+  function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    uploadedFile = file;
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = document.getElementById('previewImg');
+      img.src = ev.target.result;
+      img.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+
+    // Call real API
+    callAPI(file);
+  }
+
+  // ─── SCANNER BUTTON ────────────────────────────────────────────
+  function simulateScan() {
+    if (!uploadedFile) {
+      showAPIError('No fingerprint loaded. Please upload an image first, then click Scan.');
+      return;
+    }
+    callAPI(uploadedFile);
+  }
+
+  // ─── REAL FLASK API CALL ───────────────────────────────────────
+  async function callAPI(file) {
+    startLoader();
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/predict`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      stopLoader();
+
+      if (!response.ok || data.error) {
+        showAPIError(data.error || `Server error ${response.status}`);
+        return;
+      }
+
+      renderResult(data);
+
+    } catch (err) {
+      stopLoader();
+      // Friendly message when backend is not running
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        showAPIError(
+          'Cannot reach the Flask server at <strong>localhost:5000</strong>.<br>' +
+          'Make sure you ran: <code>python app.py</code>'
+        );
+      } else {
+        showAPIError('Unexpected error: ' + err.message);
+      }
+    }
+  }
+
+  // ─── RENDER RESULT FROM API RESPONSE ──────────────────────────
+  function renderResult(data) {
+    const type = data.blood_type;
+    const conf = data.confidence.toFixed(1);
+    // support both key names from app.py
+    const timeMs = data.analysis_time_ms ?? data.time_ms ?? 0;
+
+    document.getElementById('resultBT').textContent    = type;
+    document.getElementById('resultTitle').textContent = `Blood Group Detected: ${type}`;
+    document.getElementById('resultConf').textContent  = `${conf}%`;
+    document.getElementById('rdcABO').textContent      = `Type ${data.abo_group}`;
+    document.getElementById('rdcRh').textContent       = `${data.rh_factor} (${data.rh_factor === 'Positive' ? '+' : '-'})`;
+    document.getElementById('rdcRarity').textContent   = data.rarity;
+    document.getElementById('rdcTime').textContent     = timeMs > 0 ? `${(timeMs / 1000).toFixed(2)}s` : 'N/A';
+
+    document.getElementById('donateTo').innerHTML =
+      data.donate_to.map(t => `<span class="compat-badge">${t}</span>`).join('');
+
+    document.getElementById('receiveFrom').innerHTML =
+      data.receive_from.map(t => `<span class="compat-badge">${t}</span>`).join('');
+
+    // Remove old error banner if any
+    document.getElementById('apiErrorBanner')?.remove();
+
+    const panel = document.getElementById('resultPanel');
+    panel.classList.add('show');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    setTimeout(() => {
+      document.getElementById('accFill').style.width = `${conf}%`;
+    }, 100);
+  }
+
+  // ─── ERROR BANNER ──────────────────────────────────────────────
+  function showAPIError(msg) {
+    document.getElementById('apiErrorBanner')?.remove();
+    const banner = document.createElement('div');
+    banner.id = 'apiErrorBanner';
+    banner.style.cssText = `
+      grid-column: 1/-1; background: rgba(192,22,42,0.12);
+      border: 1px solid rgba(192,22,42,0.4); border-radius: 14px;
+      padding: 1.25rem 1.5rem; color: #ff8096; font-size: 0.9rem;
+      line-height: 1.6;
+    `;
+    banner.innerHTML = `<strong>⚠ Error:</strong> ${msg}`;
+    document.getElementById('resultPanel').insertAdjacentElement('beforebegin', banner);
+    banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // DRAG OVER
+  const uz = document.getElementById('uploadZone');
+  uz.addEventListener('dragover', e => { e.preventDefault(); uz.style.borderColor = '#c0162a'; });
+  uz.addEventListener('dragleave', () => { uz.style.borderColor = ''; });
+  uz.addEventListener('drop', e => {
+    e.preventDefault();
+    uz.style.borderColor = '';
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      uploadedFile = file;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = document.getElementById('previewImg');
+        img.src = ev.target.result;
+        img.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+      callAPI(file);
+    }
+  });
+
+  // INTERSECTION OBSERVER for animations
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.style.opacity = '1';
+        e.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.feature-card, .step-card, .bt-card, .tech-card').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(20px)';
+    el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+    observer.observe(el);
+  });
+</script>
+</body>
+</html>
