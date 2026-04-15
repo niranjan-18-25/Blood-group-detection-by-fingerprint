@@ -27,7 +27,7 @@ This project explores a **non-invasive alternative** using **Computer Vision + C
 
 ## 🖼️ Demo Preview
 
-![Snapshot1]('photos/photo1.png')
+![Snapshot1]('[photos/photo1.png](https://github.com/niranjan-18-25/Blood-group-detection-by-fingerprint/blob/main/photos/photo1.png)')
 
 ---
 
